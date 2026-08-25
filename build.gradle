@@ -1,9 +1,18 @@
 plugins {
     id 'java'
+    id 'application'
 }
 
 group = 'ch.bzz'
 version = '1.0-SNAPSHOT'
+
+application {
+    mainClass = 'ch.bzz.LibraryAppMain'
+}
+
+run {
+    standardInput = System.in
+}
 
 repositories {
     mavenCentral()
