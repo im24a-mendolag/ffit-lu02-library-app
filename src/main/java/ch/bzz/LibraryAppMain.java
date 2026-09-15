@@ -134,8 +134,13 @@ public class LibraryAppMain {
             System.out.println("Keine Bücher zum Importieren gefunden.");
             return;
         }
-        int saved = bookPersistor.saveAll(books);
-        System.out.println(saved + " Bücher importiert.");
+        try {
+            int saved = bookPersistor.saveAll(books);
+            System.out.println(saved + " Bücher importiert.");
+        } catch (RuntimeException e) {
+            // Der Stacktrace wurde bereits in AbstractPersistor geloggt.
+            System.out.println("Import fehlgeschlagen (Details siehe Log).");
+        }
     }
 
     /**
@@ -174,6 +179,9 @@ public class LibraryAppMain {
             System.out.println("Benutzer " + email + " erstellt.");
         } catch (NoSuchAlgorithmException e) {
             log.error("Passwort konnte nicht gehasht werden", e);
+        } catch (RuntimeException e) {
+            // Der Stacktrace wurde bereits in AbstractPersistor geloggt.
+            System.out.println("Benutzer konnte nicht erstellt werden (Details siehe Log).");
         }
     }
 }
