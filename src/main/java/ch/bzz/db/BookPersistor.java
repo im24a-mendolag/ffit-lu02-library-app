@@ -1,12 +1,13 @@
 package ch.bzz.db;
 
 import ch.bzz.model.Book;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -16,27 +17,49 @@ import java.util.List;
  */
 public class BookPersistor {
 
+    private static final Logger log = LoggerFactory.getLogger(BookPersistor.class);
+
+    /** Kein Limit: alle Bücher zurückgeben. */
+    public static final int NO_LIMIT = 0;
+
     /**
      * Liest alle Bücher aus der Datenbank.
      */
     public List<Book> getAllBooks() {
-        String sql = "SELECT id, isbn, title, author, publication_year FROM books";
+        return getBooks(NO_LIMIT);
+    }
+
+    /**
+     * Liest Bücher aus der Datenbank. Bei {@code limit > 0} werden höchstens
+     * so viele Bücher zurückgegeben.
+     */
+    public List<Book> getBooks(int limit) {
+        String sql = "SELECT id, isbn, title, author, publication_year FROM books ORDER BY id";
+        if (limit > NO_LIMIT) {
+            sql += " LIMIT ?";
+        }
         List<Book> books = new ArrayList<>();
 
         try (Connection conn = Database.getConnection();
-             Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
 
-            while (rs.next()) {
-                int id = rs.getInt("id");
-                String isbn = rs.getString("isbn");
-                String title = rs.getString("title");
-                String author = rs.getString("author");
-                int year = rs.getInt("publication_year");
-                books.add(new Book(id, isbn, title, author, year));
+            if (limit > NO_LIMIT) {
+                stmt.setInt(1, limit);
+            }
+            log.debug("Lese Bücher aus der Datenbank (limit={})", limit);
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    int id = rs.getInt("id");
+                    String isbn = rs.getString("isbn");
+                    String title = rs.getString("title");
+                    String author = rs.getString("author");
+                    int year = rs.getInt("publication_year");
+                    books.add(new Book(id, isbn, title, author, year));
+                }
             }
         } catch (SQLException e) {
-            System.out.println("Datenbankfehler: " + e.getMessage());
+            log.error("Bücher konnten nicht aus der Datenbank gelesen werden", e);
         }
 
         return books;
@@ -68,9 +91,11 @@ public class BookPersistor {
                 stmt.setInt(5, book.getPublicationYear());
                 stmt.addBatch();
             }
-            return stmt.executeBatch().length;
+            int saved = stmt.executeBatch().length;
+            log.info("{} Bücher in der Datenbank gespeichert", saved);
+            return saved;
         } catch (SQLException e) {
-            System.out.println("Datenbankfehler: " + e.getMessage());
+            log.error("Bücher konnten nicht in der Datenbank gespeichert werden", e);
             return 0;
         }
     }

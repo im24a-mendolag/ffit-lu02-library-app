@@ -1,6 +1,8 @@
 package ch.bzz.io;
 
 import ch.bzz.model.Book;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -13,6 +15,8 @@ import java.util.List;
  * Spalten (positionsbasiert): id, isbn, title, author, publication_year.
  */
 public class BookImporter {
+
+    private static final Logger log = LoggerFactory.getLogger(BookImporter.class);
 
     private static final String TSV_DELIMITER = "\t";
     private static final int EXPECTED_COLUMNS = 5;
@@ -32,8 +36,10 @@ public class BookImporter {
                     books.add(book);
                 }
             }
+            log.info("{} Bücher aus '{}' gelesen", books.size(), filePath);
         } catch (IOException e) {
-            System.out.println("Datei konnte nicht gelesen werden: " + e.getMessage());
+            // Fehlende/unlesbare Importdatei ist tolerierbar: Applikation läuft weiter.
+            log.warn("Importdatei '{}' konnte nicht gelesen werden", filePath, e);
         }
 
         return books;
@@ -45,7 +51,7 @@ public class BookImporter {
      */
     private Book toBook(String[] fields) {
         if (fields.length < EXPECTED_COLUMNS) {
-            System.out.println("Zeile übersprungen (zu wenige Spalten): " + String.join(TSV_DELIMITER, fields));
+            log.warn("Zeile übersprungen (zu wenige Spalten): {}", String.join(TSV_DELIMITER, fields));
             return null;
         }
 
@@ -57,7 +63,7 @@ public class BookImporter {
             int year = Integer.parseInt(fields[4].trim());
             return new Book(id, isbn, title, author, year);
         } catch (NumberFormatException e) {
-            System.out.println("Zeile übersprungen (ungültige Zahl): " + String.join(TSV_DELIMITER, fields));
+            log.warn("Zeile übersprungen (ungültige Zahl): {}", String.join(TSV_DELIMITER, fields));
             return null;
         }
     }
