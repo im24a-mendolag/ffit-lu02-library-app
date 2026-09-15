@@ -1,17 +1,41 @@
 package ch.bzz.model;
 
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+
 /**
  * Ein Buch, wie es in der Datenbank und in der TSV-Datei abgebildet wird.
+ * Die Tabelle books wird von Hibernate aus dieser Klasse generiert (Java-first).
  */
+@Entity
+@Table(name = "books")
 public class Book {
 
-    private final int id;
-    private final String isbn;
-    private final String title;
-    private final String author;
-    private final int publicationYear;
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Integer id;
 
-    public Book(int id, String isbn, String title, String author, int publicationYear) {
+    @Column(name = "isbn", nullable = false, length = 20, unique = true)
+    private String isbn;
+
+    @Column(name = "title", nullable = false, length = 255)
+    private String title;
+
+    @Column(name = "author", nullable = false, length = 255)
+    private String author;
+
+    @Column(name = "publication_year")
+    private Integer publicationYear;
+
+    /** Standard-Constructor wird von Hibernate benötigt. */
+    public Book() {
+    }
+
+    public Book(Integer id, String isbn, String title, String author, Integer publicationYear) {
         this.id = id;
         this.isbn = isbn;
         this.title = title;
@@ -19,24 +43,44 @@ public class Book {
         this.publicationYear = publicationYear;
     }
 
-    public int getId() {
+    public Integer getId() {
         return id;
+    }
+
+    public void setId(Integer id) {
+        this.id = id;
     }
 
     public String getIsbn() {
         return isbn;
     }
 
+    public void setIsbn(String isbn) {
+        this.isbn = isbn;
+    }
+
     public String getTitle() {
         return title;
+    }
+
+    public void setTitle(String title) {
+        this.title = title;
     }
 
     public String getAuthor() {
         return author;
     }
 
-    public int getPublicationYear() {
+    public void setAuthor(String author) {
+        this.author = author;
+    }
+
+    public Integer getPublicationYear() {
         return publicationYear;
+    }
+
+    public void setPublicationYear(Integer publicationYear) {
+        this.publicationYear = publicationYear;
     }
 
     @Override

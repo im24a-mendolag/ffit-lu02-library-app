@@ -1,9 +1,16 @@
 package ch.bzz;
 
+import ch.bzz.model.Book;
+import ch.bzz.model.User;
+import jakarta.persistence.EntityManagerFactory;
+import jakarta.persistence.Persistence;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
 import java.io.PrintStream;
 import java.net.URISyntaxException;
 import java.nio.file.Path;
@@ -12,6 +19,27 @@ import java.nio.file.Paths;
 import static org.junit.jupiter.api.Assertions.*;
 
 class LibraryAppMainTest {
+
+    private static EntityManagerFactory emf;
+
+    @BeforeAll
+    static void insertTestData() {
+        emf = Persistence.createEntityManagerFactory("localPU", Config.getProperties());
+
+        try (var em = emf.createEntityManager()) {
+            em.getTransaction().begin();
+            em.merge(new Book(1, "978-0134685991", "Effective Java", "Joshua Bloch", 2018));
+            em.merge(new Book(2, "978-0596009205", "Head First Java", "Kathy Sierra, Bert Bates", 2005));
+            em.getTransaction().commit();
+        }
+    }
+
+    @AfterAll
+    static void tearDown() {
+        if (emf != null) {
+            emf.close();
+        }
+    }
 
     @Test
     void testQuitEndsProgramWithoutError() {
@@ -127,6 +155,39 @@ class LibraryAppMainTest {
 
         var output = out.toString();
         assertFalse(output.isEmpty(), "Output should indicate that the file could not be found");
+    }
+
+    @Test
+    void testCreateUserCommand() {
+        // Arrange
+        try (var em = emf.createEntityManager()) {
+            em.getTransaction().begin();
+            em.createQuery("DELETE FROM User u WHERE u.email = 'max.mustermann@example.com'").executeUpdate();
+            em.getTransaction().commit();
+        }
+
+        String input = "createUser Max Mustermann 1990-05-21 max.mustermann@example.com geheim123\nquit\n";
+        InputStream in = new ByteArrayInputStream(input.getBytes());
+        System.setIn(in);
+
+        // Act
+        LibraryAppMain.main(new String[]{});
+
+        // Assert: Prüfen, ob User in DB existiert
+        try (var em = emf.createEntityManager()) {
+            User user = em.createQuery("SELECT u FROM User u WHERE u.email = :email", User.class)
+                    .setParameter("email", "max.mustermann@example.com")
+                    .getResultStream()
+                    .findFirst()
+                    .orElse(null);
+
+            assertNotNull(user, "User should exist in database");
+            assertEquals("Max", user.getFirstname());
+            assertEquals("Mustermann", user.getLastname());
+            assertEquals("1990-05-21", user.getDateOfBirth().toString());
+            assertNotNull(user.getPasswordHash(), "PasswordHash should be set");
+            assertNotNull(user.getPasswordSalt(), "PasswordSalt should be set");
+        }
     }
 
 

@@ -1,11 +1,18 @@
 package ch.bzz;
 
 import ch.bzz.db.BookPersistor;
+import ch.bzz.db.UserPersistor;
 import ch.bzz.io.BookImporter;
 import ch.bzz.model.Book;
+import ch.bzz.model.User;
+import ch.bzz.security.PasswordHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.security.NoSuchAlgorithmException;
+import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
+import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -32,6 +39,7 @@ public class LibraryAppMain {
 
     private static final BookPersistor bookPersistor = new BookPersistor();
     private static final BookImporter bookImporter = new BookImporter();
+    private static final UserPersistor userPersistor = new UserPersistor();
 
     public static void main(String[] args) {
         registerCommands();
@@ -41,6 +49,13 @@ public class LibraryAppMain {
             boolean running = true;
             while (running) {
                 System.out.print("> ");
+
+                // Kein weiterer Input mehr (z.B. EOF / geschlossener Stream): sauber beenden.
+                if (!scanner.hasNextLine()) {
+                    log.info("Eingabestream beendet (EOF), Applikation wird beendet");
+                    break;
+                }
+
                 String input = scanner.nextLine().trim();
 
                 // Befehlsnamen und Argumente trennen (erstes Wort = Name, Rest = Argumente).
@@ -86,6 +101,11 @@ public class LibraryAppMain {
             }
             return true;
         });
+
+        COMMANDS.put("createUser", args -> {
+            createUser(args);
+            return true;
+        });
     }
 
     /**
@@ -103,7 +123,7 @@ public class LibraryAppMain {
             }
         }
 
-        for (Book book : bookPersistor.getBooks(limit)) {
+        for (Book book : bookPersistor.getAll(limit)) {
             System.out.println(book);
         }
     }
@@ -114,7 +134,46 @@ public class LibraryAppMain {
             System.out.println("Keine Bücher zum Importieren gefunden.");
             return;
         }
-        int saved = bookPersistor.saveBooks(books);
+        int saved = bookPersistor.saveAll(books);
         System.out.println(saved + " Bücher importiert.");
+    }
+
+    /**
+     * Legt einen Benutzer an. Erwartet: createUser Vorname Nachname Geburtsdatum(YYYY-MM-DD) Email Passwort.
+     * Das Passwort wird gesalzen und gehasht; nur Hash + Salt (Base64) werden gespeichert.
+     */
+    private static void createUser(String args) {
+        String[] parts = args.trim().isEmpty() ? new String[0] : args.trim().split("\\s+");
+        if (parts.length < 5) {
+            System.out.println("Verwendung: createUser <Vorname> <Nachname> <Geburtsdatum YYYY-MM-DD> <Email> <Passwort>");
+            return;
+        }
+
+        String firstname = parts[0];
+        String lastname = parts[1];
+        String email = parts[3];
+        String password = parts[4];
+
+        LocalDate dateOfBirth;
+        try {
+            dateOfBirth = LocalDate.parse(parts[2]);
+        } catch (DateTimeParseException e) {
+            log.warn("Ungültiges Geburtsdatum '{}' (erwartet Format YYYY-MM-DD).", parts[2]);
+            return;
+        }
+
+        try {
+            byte[] salt = PasswordHandler.generateSalt();
+            byte[] hash = PasswordHandler.hashPassword(password, salt);
+
+            User user = new User(firstname, lastname, dateOfBirth, email);
+            user.setPasswordSalt(Base64.getEncoder().encodeToString(salt));
+            user.setPasswordHash(Base64.getEncoder().encodeToString(hash));
+
+            userPersistor.save(user);
+            System.out.println("Benutzer " + email + " erstellt.");
+        } catch (NoSuchAlgorithmException e) {
+            log.error("Passwort konnte nicht gehasht werden", e);
+        }
     }
 }

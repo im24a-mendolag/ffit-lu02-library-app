@@ -3,6 +3,8 @@ package ch.bzz;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Properties;
 
 /**
@@ -29,5 +31,18 @@ public class Config {
 
     public static String get(String key) {
         return PROPS.getProperty(key);
+    }
+
+    /**
+     * Gibt die Konfiguration als Map zurück, damit sie an
+     * {@code Persistence.createEntityManagerFactory(unit, properties)} übergeben werden kann.
+     * Enthält u.a. jakarta.persistence.jdbc.url/user/password.
+     */
+    public static Map<String, String> getProperties() {
+        Map<String, String> properties = new HashMap<>();
+        for (String key : PROPS.stringPropertyNames()) {
+            properties.put(key, PROPS.getProperty(key));
+        }
+        return properties;
     }
 }
